@@ -1,0 +1,169 @@
+"""看上下文：在聊天或面板里看会话的上下文大小、缓存命中与花费。
+
+原来靠 看上下文.bat 调 tools/ctx_now.py 读 data_v4.db 的 conversations 表；
+AstrBot 4.30 把会话改成事件溯源存储（conversations_v3 + conversation_events），
+旧脚本就报 no such table。这个插件按新结构读，提供聊天命令，
+并在面板侧栏「扩展功能 → 看上下文」里提供一个图形页面。
+"""
+
+from __future__ import annotations
+
+import asyncio
+
+from astrbot.api import logger
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.star import Context, Star, register
+from astrbot.api.web import error_response, json_response, request
+
+try:  # 同目录的核心逻辑（插件以包的方式加载）
+    from . import ctx_core
+except ImportError:  # pragma: no cover - 兜底，兼容个别加载方式
+    import ctx_core  # type: ignore[no-redef]
+
+PLUGIN_NAME = "astrbot_plugin_ctx_view"
+
+
+@register(
+    PLUGIN_NAME,
+    "dsh",
+    "看会话的上下文大小、缓存命中率与花费（聊天命令 + 面板侧栏页面，适配 AstrBot 4.30 事件溯源存储）",
+    "1.1.0",
+)
+class CtxViewPlugin(Star):
+    def __init__(self, context: Context, config: dict | None = None):
+        super().__init__(context, config)
+        self.config: dict = dict(config or {})
+        self._db_path = self._cfg_str("db_path", "") or ctx_core.find_db()
+        if self._db_path:
+            logger.info(f"[ctx_view] 已加载，数据库：{self._db_path}")
+        else:
+            logger.warning("[ctx_view] 没找到 data_v4.db，请在插件配置里手填 db_path")
+        try:
+            context.register_web_api(
+                f"/{PLUGIN_NAME}/overview",
+                self.page_overview,
+                ["GET"],
+                "读取会话上下文用量（看上下文网页视图）",
+            )
+        except Exception:  # noqa: BLE001 - 老版本没有 Web API 时不影响聊天命令
+            logger.exception("[ctx_view] 注册网页视图接口失败，网页视图将不可用")
+
+    # ------------------------------------------------------------------ 配置
+    def _cfg(self, key: str, default):
+        value = self.config.get(key, default)
+        if value is None or value == "":
+            return default
+        return value
+
+    def _cfg_str(self, key: str, default: str = "") -> str:
+        return str(self._cfg(key, default)).strip()
+
+    def _cfg_int(self, key: str, default: int) -> int:
+        try:
+            return int(self._cfg(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    def _cfg_float(self, key: str, default: float) -> float:
+        try:
+            return float(self._cfg(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    def _prices(self) -> ctx_core.Prices:
+        return ctx_core.Prices(
+            miss=self._cfg_float("price_miss", 2.0) / 1_000_000,
+            hit=self._cfg_float("price_hit", 0.04) / 1_000_000,
+            out=self._cfg_float("price_out", 8.0) / 1_000_000,
+        )
+
+    def _options(self, mode: str) -> dict:
+        return {
+            "mode": mode,
+            "prices": self._prices(),
+            "max_ctx": self._cfg_int("max_context_tokens", 1_000_000),
+            "recent": self._cfg_int("recent_count", 3),
+            "limit": self._cfg_int("all_limit", 15),
+            "show_model": bool(self._cfg("show_model", False)),
+        }
+
+    # ------------------------------------------------------------------ 取数
+    async def _current_cid(self, event: AstrMessageEvent, umo: str) -> str | None:
+        try:
+            manager = self.context.conversation_manager
+            return await manager.get_curr_conversation_id(umo)
+        except Exception as exc:  # noqa: BLE001 - 接口变更时退回 umo 匹配
+            logger.debug(f"[ctx_view] 读取当前会话 id 失败：{exc}")
+            return None
+
+    async def _report(self, event: AstrMessageEvent, mode: str) -> str:
+        if not self._db_path:
+            return "找不到 data_v4.db。请在 AstrBot 面板的插件配置里填写 db_path。"
+        umo = getattr(event, "unified_msg_origin", "") or ""
+        cid = await self._current_cid(event, umo)
+        options = self._options(mode)
+        try:
+            return await asyncio.to_thread(
+                ctx_core.build_report,
+                self._db_path,
+                cid,
+                umo,
+                current_cid=cid,
+                **options,
+            )
+        except FileNotFoundError:
+            return f"数据库不见了：{self._db_path}"
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("[ctx_view] 生成上下文报告失败")
+            return f"读上下文失败：{type(exc).__name__}: {exc}"
+
+    # ------------------------------------------------------------------ 网页视图
+    async def page_overview(self):
+        """网页视图数据：会话列表 + 选中会话的最近请求明细。"""
+        if not self._db_path:
+            return error_response(
+                "没找到 data_v4.db，请在插件配置里填写 db_path。", status_code=503
+            )
+        cid = (request.query.get("cid") or "").strip() or None
+        try:
+            recent = int(request.query.get("recent", 10))
+        except (TypeError, ValueError):
+            recent = 10
+        try:
+            data = await asyncio.to_thread(
+                ctx_core.collect,
+                self._db_path,
+                cid,
+                None,
+                prices=self._prices(),
+                max_ctx=self._cfg_int("max_context_tokens", 1_000_000),
+                recent=max(1, min(recent, 50)),
+                limit=500,
+            )
+        except FileNotFoundError:
+            return error_response(f"数据库不见了：{self._db_path}", status_code=404)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("[ctx_view] 读取网页视图数据失败")
+            return error_response(
+                f"读取失败：{type(exc).__name__}: {exc}", status_code=500
+            )
+        return json_response(data)
+
+    # ------------------------------------------------------------------ 命令
+    @filter.command("上下文", alias={"看上下文", "ctx", "上下文长度"}, desc="看看当前会话的上下文有多大、花了多少钱")
+    async def cmd_ctx(self, event: AstrMessageEvent):
+        """当前会话：消息条数、上下文 token、缓存命中率、这一次的花费。"""
+        yield event.plain_result(await self._report(event, "current"))
+
+    @filter.command("上下文全部", alias={"全部上下文", "所有上下文", "ctxall"}, desc="列出所有会话的上下文大小与花费")
+    async def cmd_ctx_all(self, event: AstrMessageEvent):
+        """所有会话按最近活动排序。"""
+        yield event.plain_result(await self._report(event, "all"))
+
+    @filter.command("上下文帮助", alias={"ctxhelp"}, desc="看上下文的用法说明")
+    async def cmd_ctx_help(self, event: AstrMessageEvent):
+        """用法说明。"""
+        yield event.plain_result(ctx_core.render_help())
+
+    async def terminate(self):
+        """插件卸载/重载时不需要清理什么东西。"""

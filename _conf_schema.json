@@ -1,0 +1,48 @@
+{
+  "db_path": {
+    "type": "string",
+    "description": "AstrBot 数据库路径（data_v4.db）",
+    "hint": "留空自动探测：先问 AstrBot 自己的 data 目录，再找 ~/.astrbot_launcher/instances/*/core/data/data_v4.db",
+    "default": ""
+  },
+  "max_context_tokens": {
+    "type": "int",
+    "description": "模型上下文上限（token）",
+    "hint": "只用来算「用了百分之几」，当前 deepseek-flash 是 1000000；填 0 就不显示百分比",
+    "default": 1000000
+  },
+  "price_miss": {
+    "type": "float",
+    "description": "未命中输入单价（元 / 百万 token）",
+    "hint": "2026-11-02 起是 2.0",
+    "default": 2.0
+  },
+  "price_hit": {
+    "type": "float",
+    "description": "命中输入单价（元 / 百万 token）",
+    "hint": "2026-11-02 起是 0.04",
+    "default": 0.04
+  },
+  "price_out": {
+    "type": "float",
+    "description": "输出单价（元 / 百万 token）",
+    "hint": "2026-11-02 起是 8.0",
+    "default": 8.0
+  },
+  "recent_count": {
+    "type": "int",
+    "description": "当前会话里显示最近几次请求",
+    "hint": "默认 3 条；填 1 就只看上一次",
+    "default": 3
+  },
+  "all_limit": {
+    "type": "int",
+    "description": "「/上下文全部」最多列几个会话",
+    "default": 15
+  },
+  "show_model": {
+    "type": "bool",
+    "description": "最近请求里显示模型名",
+    "default": false
+  }
+}

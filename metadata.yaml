@@ -1,0 +1,13 @@
+name: astrbot_plugin_ctx_view
+display_name: 看上下文
+author: dsh
+version: 1.1.0
+desc: 看当前会话的上下文大小、缓存命中率与花费。聊天里发命令直接出结果，也可以在面板侧栏「扩展功能 → 看上下文」打开图形界面翻会话。适配 AstrBot 4.30 的事件溯源存储。
+short_desc: 看上下文大小与花费
+# 发布到插件市场时，先把代码推到 GitHub，再把仓库地址填到下面这行：
+# repo: https://github.com/<your-name>/astrbot_plugin_ctx_view
+views:
+  - name: context
+    target: plugin_page
+    title: 看上下文
+    description: 会话列表、上下文大小、缓存命中率与花费

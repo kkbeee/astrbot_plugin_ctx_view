@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>看上下文</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <div class="brand">
+          <h1>看上下文</h1>
+          <p id="subtitle" class="subtitle">读取 AstrBot 的 data_v4.db</p>
+        </div>
+        <div class="actions">
+          <label class="auto">
+            <input id="auto" type="checkbox" />
+            <span>自动刷新</span>
+          </label>
+          <span id="updated" class="updated"></span>
+          <button id="refresh" class="btn" type="button">刷新</button>
+        </div>
+      </header>
+
+      <p id="error" class="error" role="alert" hidden></p>
+
+      <div class="layout">
+        <aside class="panel sessions">
+          <div class="panel-head">
+            <h2>会话</h2>
+            <span id="count" class="count"></span>
+          </div>
+          <input
+            id="search"
+            class="search"
+            type="search"
+            placeholder="搜索会话、群号或标题"
+            autocomplete="off"
+          />
+          <div id="list" class="list" role="list"></div>
+        </aside>
+
+        <section class="panel detail">
+          <p id="empty" class="empty">正在连接…</p>
+
+          <div id="detail" hidden>
+            <div class="detail-head">
+              <div class="detail-title">
+                <h2 id="name">—</h2>
+                <p id="meta" class="meta"></p>
+              </div>
+              <span id="model" class="chip"></span>
+            </div>
+
+            <div class="stats">
+              <div class="stat">
+                <span class="stat-label">上下文</span>
+                <strong id="ctx">—</strong>
+                <span id="ctx-note" class="stat-note"></span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">缓存命中</span>
+                <strong id="rate">—</strong>
+                <span id="rate-note" class="stat-note"></span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">这一次花费</span>
+                <strong id="cost">—</strong>
+                <span id="cost-note" class="stat-note"></span>
+              </div>
+            </div>
+
+            <div class="bar" role="img" aria-label="上下文缓存命中比例">
+              <span id="bar-hit" class="bar-hit"></span>
+              <span id="bar-miss" class="bar-miss"></span>
+            </div>
+            <div class="legend">
+              <span class="legend-hit">命中</span>
+              <span class="legend-miss">未命中</span>
+              <span id="capacity" class="legend-right"></span>
+            </div>
+
+            <h3 class="section-title">最近请求</h3>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th class="num">上下文</th>
+                    <th class="num">命中</th>
+                    <th class="num">输出</th>
+                    <th class="num">花费</th>
+                    <th>模型</th>
+                  </tr>
+                </thead>
+                <tbody id="recent"></tbody>
+              </table>
+            </div>
+
+            <p class="note">
+              口径：上下文 = 上一次请求的「未命中 + 命中」token；花费按插件配置的单价计算（默认 ¥2 /
+              ¥0.04 / ¥8 每百万）。数据来自 provider_stats 表，发一条消息后点刷新就能看到最新一次。
+              页面只展示 token 数与花费，不读取消息内容。
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="/api/plugin/page/bridge-sdk.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
