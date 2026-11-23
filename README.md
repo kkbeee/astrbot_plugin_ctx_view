@@ -127,13 +127,13 @@ print(data["selected"]["label"], data["selected"]["ctx"])
 
 ## 发布到插件市场
 
-AstrBot 的插件市场用 GitHub 仓库托管插件：
+AstrBot 的插件市场用 GitHub 仓库托管插件，本插件已托管在
+<https://github.com/kkbeee/astrbot_plugin_ctx_view>（`metadata.yaml` 里的 `repo` 已填好）。
 
-1. 把整个目录推到 GitHub（仓库名建议就叫 `astrbot_plugin_ctx_view`），并在 `metadata.yaml` 里补上
-   `repo: https://github.com/<你>/astrbot_plugin_ctx_view`。
-2. 打开 <https://cloud.astrbot.app/publish>，用 AstrBot Cloud 账号登录，填仓库地址提交。
-   市场会自己拉仓库打包，zip 上限 16 MB（这个插件约 20 KB）。
-3. 本地现成的包在 `dist/astrbot_plugin_ctx_view-1.1.0.zip`，面板「安装插件 → 上传」可以直接装。
+1. 打开 <https://cloud.astrbot.app/publish>，用 AstrBot Cloud 账号登录，填仓库地址提交。
+   市场会自己拉仓库打包，zip 上限 16 MB（这个插件约 30 KB）。
+2. 本地现成的包在 `dist/astrbot_plugin_ctx_view-1.1.0.zip`，面板「安装插件 → 上传」可以直接装。
+3. 更新版本时改 `metadata.yaml` 的 `version`，push 之后市场刷新即可。
 
 ## 开发
 
