@@ -25,86 +25,237 @@
 
       <p id="error" class="error" role="alert" hidden></p>
 
-      <div class="layout">
-        <aside class="panel sessions">
-          <div class="panel-head">
-            <h2>会话</h2>
-            <span id="count" class="count"></span>
+      <section class="overview" aria-label="费用概览">
+        <div class="ov-card">
+          <span class="ov-label">今日花费</span>
+          <strong id="ov-today">—</strong>
+          <span id="ov-today-note" class="ov-note"></span>
+        </div>
+        <div class="ov-card">
+          <span class="ov-label">本周</span>
+          <strong id="ov-week">—</strong>
+          <span id="ov-week-note" class="ov-note"></span>
+        </div>
+        <div class="ov-card">
+          <span class="ov-label">本月</span>
+          <strong id="ov-month">—</strong>
+          <span id="ov-month-note" class="ov-note"></span>
+        </div>
+        <div class="ov-card">
+          <span class="ov-label">累计</span>
+          <strong id="ov-all">—</strong>
+          <span id="ov-all-note" class="ov-note"></span>
+        </div>
+        <div class="ov-card">
+          <span class="ov-label">缓存命中</span>
+          <strong id="ov-rate">—</strong>
+          <span id="ov-rate-note" class="ov-note"></span>
+        </div>
+      </section>
+
+      <section id="budget-strip" class="budget-strip" hidden aria-label="预算">
+        <span class="budget-title">预算</span>
+        <div class="budget-row">
+          <span class="budget-key">今日</span>
+          <div class="budget-track"><span id="budget-day" class="budget-fill"></span></div>
+          <span id="budget-day-text" class="budget-text"></span>
+          <span id="budget-day-amount" class="budget-amount"></span>
+        </div>
+        <div class="budget-row">
+          <span class="budget-key">本月</span>
+          <div class="budget-track"><span id="budget-month" class="budget-fill"></span></div>
+          <span id="budget-month-text" class="budget-text"></span>
+          <span id="budget-month-amount" class="budget-amount"></span>
+        </div>
+        <span id="peak" class="peak" hidden></span>
+      </section>
+
+      <nav class="tabs" role="tablist" aria-label="视图">
+        <button id="tab-sessions-btn" class="tab active" type="button" role="tab" aria-selected="true">会话</button>
+        <button id="tab-stats-btn" class="tab" type="button" role="tab" aria-selected="false">统计</button>
+      </nav>
+
+      <div id="tab-sessions" class="tab-panel">
+        <div class="layout">
+          <aside class="panel sessions">
+            <div class="panel-head">
+              <h2>会话</h2>
+              <span id="count" class="count"></span>
+            </div>
+            <input
+              id="search"
+              class="search"
+              type="search"
+              placeholder="搜索会话、群号或标题"
+              autocomplete="off"
+            />
+            <div id="list" class="list" role="list"></div>
+          </aside>
+
+          <section class="panel detail">
+            <p id="empty" class="empty">正在连接…</p>
+
+            <div id="detail" hidden>
+              <div class="detail-head">
+                <div class="detail-title">
+                  <h2 id="name">—</h2>
+                  <p id="meta" class="meta"></p>
+                </div>
+                <span id="model" class="chip"></span>
+              </div>
+
+              <div class="stats">
+                <div class="stat">
+                  <span class="stat-label">上下文</span>
+                  <strong id="ctx">—</strong>
+                  <span id="ctx-note" class="stat-note"></span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">缓存命中</span>
+                  <strong id="rate">—</strong>
+                  <span id="rate-note" class="stat-note"></span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">这一次花费</span>
+                  <strong id="cost">—</strong>
+                  <span id="cost-note" class="stat-note"></span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">会话累计</span>
+                  <strong id="cost-total">—</strong>
+                  <span id="cost-total-note" class="stat-note"></span>
+                </div>
+              </div>
+
+              <div class="bar" role="img" aria-label="上下文缓存命中比例">
+                <span id="bar-hit" class="bar-hit"></span>
+                <span id="bar-miss" class="bar-miss"></span>
+              </div>
+              <div class="legend">
+                <span class="legend-hit">命中</span>
+                <span class="legend-miss">未命中</span>
+                <span id="capacity" class="legend-right"></span>
+              </div>
+
+              <h3 class="section-title">最近请求</h3>
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>时间</th>
+                      <th class="num">上下文</th>
+                      <th class="num">命中</th>
+                      <th class="num">输出</th>
+                      <th class="num">花费</th>
+                      <th>模型</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recent"></tbody>
+                </table>
+              </div>
+
+              <p class="note">
+                口径：上下文 = 上一次请求的「未命中 + 命中」token；花费按插件配置的单价计算（默认 ¥2 /
+                ¥0.04 / ¥8 每百万）。数据来自 provider_stats 表，发一条消息后点刷新就能看到最新一次。
+                页面只展示 token 数与花费，不读取消息内容。
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="tab-stats" class="tab-panel" hidden>
+        <div class="stats-grid">
+          <section class="panel chart-panel">
+            <div class="panel-head">
+              <h2>费用趋势</h2>
+              <div class="chart-tools">
+                <select id="basis" class="select" aria-label="计费口径">
+                  <option value="official" selected>官方口径 · 峰谷计价</option>
+                  <option value="list">原价口径 · 上限估算</option>
+                </select>
+                <select id="range" class="select" aria-label="统计天数">
+                  <option value="7">近 7 天</option>
+                  <option value="14" selected>近 14 天</option>
+                  <option value="30">近 30 天</option>
+                </select>
+                <button id="export" class="btn ghost" type="button">导出 CSV</button>
+              </div>
+            </div>
+            <svg id="trend" class="trend" viewBox="0 0 720 220" role="img" aria-label="每日花费柱状图"></svg>
+            <p id="trend-note" class="note"></p>
+          </section>
+
+          <div class="stats-grid two">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>模型</h2>
+                <span id="model-note" class="count"></span>
+              </div>
+              <div class="table-wrap">
+                <table class="table compact">
+                  <thead>
+                    <tr>
+                      <th>模型</th>
+                      <th class="num">请求</th>
+                      <th class="num">花费</th>
+                      <th class="num">占比</th>
+                      <th class="num">命中</th>
+                    </tr>
+                  </thead>
+                  <tbody id="model-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>渠道</h2>
+              </div>
+              <div class="table-wrap">
+                <table class="table compact">
+                  <thead>
+                    <tr>
+                      <th>渠道</th>
+                      <th class="num">请求</th>
+                      <th class="num">花费</th>
+                      <th class="num">占比</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kind-rows"></tbody>
+                </table>
+              </div>
+            </section>
           </div>
-          <input
-            id="search"
-            class="search"
-            type="search"
-            placeholder="搜索会话、群号或标题"
-            autocomplete="off"
-          />
-          <div id="list" class="list" role="list"></div>
-        </aside>
 
-        <section class="panel detail">
-          <p id="empty" class="empty">正在连接…</p>
-
-          <div id="detail" hidden>
-            <div class="detail-head">
-              <div class="detail-title">
-                <h2 id="name">—</h2>
-                <p id="meta" class="meta"></p>
-              </div>
-              <span id="model" class="chip"></span>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>时段分布</h2>
+              <span class="count">按请求发生的小时（东八区）</span>
             </div>
+            <div id="hour-chart" class="hour-chart" role="img" aria-label="每小时花费"></div>
+          </section>
 
-            <div class="stats">
-              <div class="stat">
-                <span class="stat-label">上下文</span>
-                <strong id="ctx">—</strong>
-                <span id="ctx-note" class="stat-note"></span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">缓存命中</span>
-                <strong id="rate">—</strong>
-                <span id="rate-note" class="stat-note"></span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">这一次花费</span>
-                <strong id="cost">—</strong>
-                <span id="cost-note" class="stat-note"></span>
-              </div>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>最近失败</h2>
+              <span id="latency-note" class="count"></span>
             </div>
-
-            <div class="bar" role="img" aria-label="上下文缓存命中比例">
-              <span id="bar-hit" class="bar-hit"></span>
-              <span id="bar-miss" class="bar-miss"></span>
-            </div>
-            <div class="legend">
-              <span class="legend-hit">命中</span>
-              <span class="legend-miss">未命中</span>
-              <span id="capacity" class="legend-right"></span>
-            </div>
-
-            <h3 class="section-title">最近请求</h3>
             <div class="table-wrap">
-              <table class="table">
+              <table class="table compact">
                 <thead>
                   <tr>
                     <th>时间</th>
-                    <th class="num">上下文</th>
-                    <th class="num">命中</th>
-                    <th class="num">输出</th>
-                    <th class="num">花费</th>
                     <th>模型</th>
+                    <th>渠道</th>
+                    <th>状态</th>
                   </tr>
                 </thead>
-                <tbody id="recent"></tbody>
+                <tbody id="fail-rows"></tbody>
               </table>
             </div>
-
-            <p class="note">
-              口径：上下文 = 上一次请求的「未命中 + 命中」token；花费按插件配置的单价计算（默认 ¥2 /
-              ¥0.04 / ¥8 每百万）。数据来自 provider_stats 表，发一条消息后点刷新就能看到最新一次。
-              页面只展示 token 数与花费，不读取消息内容。
-            </p>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
 

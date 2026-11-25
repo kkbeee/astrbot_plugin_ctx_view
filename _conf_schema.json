@@ -29,6 +29,71 @@
     "hint": "2026-11-02 起是 8.0",
     "default": 8.0
   },
+  "model_prices": {
+    "type": "text",
+    "description": "按模型覆盖单价（JSON，可留空）",
+    "hint": "例：{\"deepseek-reasoner\": {\"miss\": 4, \"hit\": 0.04, \"out\": 16}}；数字单位仍是元/百万 token，没写到的模型用上面的默认单价",
+    "default": ""
+  },
+  "daily_budget": {
+    "type": "float",
+    "description": "日预算（元，填 0 不启用）",
+    "hint": "网页概览和聊天命令里显示进度，超过 80% 变黄、100% 变红",
+    "default": 0.0
+  },
+  "monthly_budget": {
+    "type": "float",
+    "description": "月预算（元，填 0 不启用）",
+    "default": 0.0
+  },
+  "billing_mode": {
+    "type": "string",
+    "description": "默认计费口径",
+    "hint": "official = 官方 API 口径（按峰谷价算，跟官方账单对得上）；list = 原价口径（不套折扣，当上限估算）。网页统计页可以临时切换，这里只是聊天命令和默认打开时的口径",
+    "default": "official"
+  },
+  "offpeak_enabled": {
+    "type": "bool",
+    "description": "套用官方峰谷价",
+    "hint": "官方口径：周一至周五 09:00–12:00、14:00–18:00 原价，其余时间（午休、夜间、周末、节假日）五折。关掉就等于原价上限估算",
+    "default": true
+  },
+  "peak_windows": {
+    "type": "text",
+    "description": "峰时窗口（JSON 二维数组，东八区）",
+    "hint": "默认 [[\"09:00\",\"12:00\"],[\"14:00\",\"18:00\"]]；也接受 09:00-12:00,14:00-18:00 简写",
+    "default": "[[\"09:00\",\"12:00\"],[\"14:00\",\"18:00\"]]"
+  },
+  "peak_weekdays": {
+    "type": "string",
+    "description": "按工作日计价的星期",
+    "hint": "1=周一 … 7=周日，可写 1-5 或 1,2,3,4,5；默认周一到周五",
+    "default": "1-5"
+  },
+  "peak_holidays": {
+    "type": "text",
+    "description": "法定节假日（整天按谷时）",
+    "hint": "逗号分隔的 YYYY-MM-DD，例如 2026-10-01,2026-10-02；留空表示只按星期判断",
+    "default": ""
+  },
+  "peak_workdays": {
+    "type": "text",
+    "description": "调休上班日（按工作日计价）",
+    "hint": "逗号分隔的 YYYY-MM-DD；用来覆盖落在周末的补班日",
+    "default": ""
+  },
+  "offpeak_discount": {
+    "type": "float",
+    "description": "谷时折扣系数",
+    "hint": "0.5 表示五折；只乘在谷时发生的请求上",
+    "default": 0.5
+  },
+  "stats_days": {
+    "type": "int",
+    "description": "网页统计默认看最近几天",
+    "hint": "1–90，默认 14；「/上下文统计」也用这个天数",
+    "default": 14
+  },
   "recent_count": {
     "type": "int",
     "description": "当前会话里显示最近几次请求",

@@ -17,7 +17,7 @@ from __future__ import annotations
 import glob
 import os
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -526,11 +526,14 @@ def render_help() -> str:
         "【看上下文】读 AstrBot 的 data_v4.db，看会话有多大、缓存命中多少、这次花了多少钱\n"
         "\n"
         "/上下文          当前会话：消息条数、上下文 token、命中率、花费\n"
+        "/上下文今日      今天一共花了多少、几个请求\n"
+        "/上下文统计      最近几天的花费、命中率、模型分布（默认 7 天）\n"
         "/上下文全部      所有会话按最近活动排序\n"
         "/上下文帮助      就是这条\n"
         "\n"
         "口径：上下文 = 上一次请求的「未命中 + 命中」token；"
-        "花费按 ¥2 / ¥0.04 / ¥8 每百万（未命中 / 命中 / 输出）。"
+        "花费按插件配置的单价计算（默认 ¥2 / ¥0.04 / ¥8 每百万）。\n"
+        "网页视图在面板侧栏「扩展功能 → 看上下文」，有每日趋势、模型/渠道/时段拆分。"
     )
 
 
