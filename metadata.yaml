@@ -1,7 +1,7 @@
 name: astrbot_plugin_ctx_view
 display_name: 看上下文
 author: dsh
-version: 1.3.2
+version: 1.3.3
 desc: 看当前会话的上下文大小、缓存命中率与花费，并统计今日/本周/本月花了多少、花在哪个模型。聊天命令直接出结果，也可以在面板侧栏「扩展功能 → 看上下文」看趋势、模型与渠道拆分。适配 AstrBot 4.30 的事件溯源存储。
 short_desc: 看上下文大小与花费
 repo: https://github.com/kkbeee/astrbot_plugin_ctx_view

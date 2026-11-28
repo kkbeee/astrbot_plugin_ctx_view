@@ -11,6 +11,7 @@ AstrBot 4.30 把会话改成事件溯源存储（conversations_v3 + conversation
 1.3.1 把峰谷边界改成官方规则（工作日 09:00–12:00、14:00–18:00 原价，其余五折）；
 1.3.2 修单次请求的花费：表格每一行和「这一次」也按请求发生的时刻打折，
         之前只有汇总套了谷时折扣，逐条明细还是原价。
+1.3.3 版本号对齐发布：代码与 1.3.2 一致，用于插件市场按新版本重新拉取打包。
 网页统计页可在官方口径 / 原价口径之间切换。
 """
 
@@ -31,7 +32,7 @@ except ImportError:  # pragma: no cover - 兜底，兼容个别加载方式
     import ctx_stats  # type: ignore[no-redef]
 
 PLUGIN_NAME = "astrbot_plugin_ctx_view"
-PLUGIN_VERSION = "1.3.2"
+PLUGIN_VERSION = "1.3.3"
 
 
 @register(
