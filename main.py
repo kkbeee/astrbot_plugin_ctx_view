@@ -9,6 +9,8 @@ AstrBot 4.30 把会话改成事件溯源存储（conversations_v3 + conversation
 今日/本周/本月/累计、按天趋势、模型与渠道拆分、预算、峰谷折扣。
 1.3.0 起默认为「官方 API 口径」：按官方峰谷价算，跟官方账单对得上；
 1.3.1 把峰谷边界改成官方规则（工作日 09:00–12:00、14:00–18:00 原价，其余五折）；
+1.3.2 修单次请求的花费：表格每一行和「这一次」也按请求发生的时刻打折，
+        之前只有汇总套了谷时折扣，逐条明细还是原价。
 网页统计页可在官方口径 / 原价口径之间切换。
 """
 
@@ -29,7 +31,7 @@ except ImportError:  # pragma: no cover - 兜底，兼容个别加载方式
     import ctx_stats  # type: ignore[no-redef]
 
 PLUGIN_NAME = "astrbot_plugin_ctx_view"
-PLUGIN_VERSION = "1.3.1"
+PLUGIN_VERSION = "1.3.2"
 
 
 @register(
@@ -121,6 +123,12 @@ class CtxViewPlugin(Star):
             raw = ""
         return ctx_stats.normalize_basis(raw or self._basis())
 
+    def _factor(self, basis: str | None = None) -> ctx_core.Factor | None:
+        """按计费口径给单次请求一个折扣系数；原价口径（list）不打折。"""
+        if ctx_stats.normalize_basis(basis or self._basis()) == "list":
+            return None
+        return self._offpeak().factor
+
     def _stats_days(self, value: object = None) -> int:
         try:
             days = int(value if value is not None else self._cfg("stats_days", 14))
@@ -138,6 +146,7 @@ class CtxViewPlugin(Star):
         return {
             "mode": mode,
             "prices": self._prices(),
+            "factor": self._factor(),
             "max_ctx": self._cfg_int("max_context_tokens", 1_000_000),
             "recent": self._cfg_int("recent_count", 3),
             "limit": self._cfg_int("all_limit", 15),
@@ -207,6 +216,7 @@ class CtxViewPlugin(Star):
             recent = int(request.query.get("recent", 10))
         except (TypeError, ValueError):
             recent = 10
+        basis = self._request_basis()
         try:
             data = await asyncio.to_thread(
                 ctx_core.collect,
@@ -214,11 +224,12 @@ class CtxViewPlugin(Star):
                 cid,
                 None,
                 prices=self._prices(),
+                factor=self._factor(basis),
                 max_ctx=self._cfg_int("max_context_tokens", 1_000_000),
                 recent=max(1, min(recent, 50)),
                 limit=500,
             )
-            summary = await self._summary(basis=self._request_basis())
+            summary = await self._summary(basis=basis)
         except FileNotFoundError:
             return error_response(f"数据库不见了：{self._db_path}", status_code=404)
         except Exception as exc:  # noqa: BLE001

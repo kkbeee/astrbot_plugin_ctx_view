@@ -20,6 +20,12 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Callable
+
+# 折扣函数：给一个本地时刻，返回该时刻的计价系数（谷时 0.5，峰时 1.0）。
+# ctx_stats 里的 OffPeak.factor 就是这种形状；ctx_core 不 import ctx_stats，
+# 所以由调用方（插件）把它传进来，避免循环导入。
+Factor = Callable[[datetime | None], float]
 
 DB_FILENAME = "data_v4.db"
 
@@ -48,6 +54,19 @@ class Prices:
 
     def cost(self, miss: int, hit: int, out: int) -> float:
         return miss * self.miss + hit * self.hit + out * self.out
+
+
+def _discount(factor: Factor | None, at: datetime | None) -> float:
+    """取这一次请求的计价系数（谷时 0.5、峰时 1.0）。
+
+    没给折扣函数（旧调用方、原价口径）就按 1.0；折扣函数自己出错也不拖垮整张表。
+    """
+    if factor is None:
+        return 1.0
+    try:
+        return max(0.0, min(1.0, float(factor(at))))
+    except Exception:  # noqa: BLE001 - 折扣算错最多是价格不准，不该整页报错
+        return 1.0
 
 
 def _n(value: float | int | None) -> str:
@@ -328,8 +347,9 @@ def pick_session(sessions: list[Session], cid: str | None, umo: str | None) -> S
 # ---------------------------------------------------------------- 结构化数据（给网页视图）
 
 
-def _stat_payload(stat: Stat, prices: Prices) -> dict:
+def _stat_payload(stat: Stat, prices: Prices, factor: Factor | None = None) -> dict:
     """一次请求的明细，前端直接拿去画表。"""
+    ratio = _discount(factor, stat.at)
     return {
         "at": _fmt_time(stat.at),
         "at_ts": int(stat.at.timestamp()) if stat.at else None,
@@ -338,13 +358,14 @@ def _stat_payload(stat: Stat, prices: Prices) -> dict:
         "hit": stat.hit,
         "out": stat.out,
         "rate": round(stat.rate * 100, 1),
-        "cost": round(stat.cost(prices), 6),
-        "cost_miss": round(prices.cost(stat.ctx, 0, stat.out), 6),
+        "cost": round(stat.cost(prices) * ratio, 6),
+        "cost_miss": round(prices.cost(stat.ctx, 0, stat.out) * ratio, 6),
         "model": stat.model,
+        "factor": round(ratio, 4),
     }
 
 
-def _session_payload(session: Session, prices: Prices) -> dict:
+def _session_payload(session: Session, prices: Prices, factor: Factor | None = None) -> dict:
     """一个会话的概览；没有请求记录时给按字数的粗略估算。"""
     bits = (session.umo or "").split(":")
     kind = _KIND_LABEL.get(bits[1], bits[1]) if len(bits) > 1 else ""
@@ -375,10 +396,11 @@ def _session_payload(session: Session, prices: Prices) -> dict:
                 "cost": None,
                 "cost_miss": None,
                 "model": "",
+                "factor": None,
             }
         )
     else:
-        payload.update(_stat_payload(session.last, prices))
+        payload.update(_stat_payload(session.last, prices, factor))
     return payload
 
 
@@ -388,6 +410,7 @@ def collect(
     umo: str | None = None,
     *,
     prices: Prices = Prices(),
+    factor: Factor | None = None,
     max_ctx: int = 0,
     recent: int = 10,
     limit: int = 200,
@@ -405,11 +428,11 @@ def collect(
             stats = fetch_recent(con, selected.cid, limit=max(1, int(recent)))
             if stats:
                 selected.last = stats[0]
-        items = [_session_payload(s, prices) for s in sessions[: max(1, int(limit))]]
+        items = [_session_payload(s, prices, factor) for s in sessions[: max(1, int(limit))]]
         detail = None
         if selected is not None:
-            detail = _session_payload(selected, prices)
-            detail["recent"] = [_stat_payload(s, prices) for s in stats]
+            detail = _session_payload(selected, prices, factor)
+            detail["recent"] = [_stat_payload(s, prices, factor) for s in stats]
         return {
             "db": str(db_path),
             "now": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -446,6 +469,7 @@ def render_current(
     prices: Prices = Prices(),
     max_ctx: int = 0,
     show_model: bool = False,
+    factor: Factor | None = None,
 ) -> str:
     lines = [f"【上下文】{session_label(session)}"]
 
@@ -468,8 +492,8 @@ def render_current(
     )
     lines.append(f"缓存命中 {_n(last.hit)}（{_pct(last.hit, last.ctx)}），未命中 {_n(last.miss)}")
 
-    price_line = f"这一次 {_money(last.cost(prices))}"
-    price_line += f" · 全未命中约 {_money(prices.cost(last.ctx, 0, last.out))}"
+    price_line = f"这一次 {_money(last.cost(prices) * _discount(factor, last.at))}"
+    price_line += f" · 全未命中约 {_money(prices.cost(last.ctx, 0, last.out) * _discount(factor, last.at))}"
     if max_ctx:
         price_line += f" · 上限 {_n(max_ctx)}，用了 {_pct(last.ctx, max_ctx)}"
     lines.append(price_line)
@@ -481,7 +505,7 @@ def render_current(
             at = stat.at.strftime("%H:%M") if stat.at and stat.at.date() == datetime.now().date() else _fmt_time(stat.at)
             line = (
                 f"{at}  上下文 {_n(stat.ctx)}  命中 {_pct(stat.hit, stat.ctx)}"
-                f"  输出 {_n(stat.out)}  {_money(stat.cost(prices))}"
+                f"  输出 {_n(stat.out)}  {_money(stat.cost(prices) * _discount(factor, stat.at))}"
             )
             if show_model and stat.model:
                 line += f"  {stat.model}"
@@ -544,6 +568,7 @@ def build_report(
     *,
     mode: str = "current",
     prices: Prices = Prices(),
+    factor: Factor | None = None,
     max_ctx: int = 0,
     recent: int = 3,
     limit: int = 15,
@@ -568,7 +593,12 @@ def build_report(
         if stats:
             session.last = stats[0]
         return render_current(
-            session, stats, prices=prices, max_ctx=max_ctx, show_model=show_model
+            session,
+            stats,
+            prices=prices,
+            max_ctx=max_ctx,
+            show_model=show_model,
+            factor=factor,
         )
     finally:
         con.close()
